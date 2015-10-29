@@ -82,7 +82,7 @@ struct pose {
 };
 
 static pose initial_pose, predict_pose, previous_pose, ndt_pose, current_pose, control_pose, previous_gnss_pose, current_gnss_pose;
-
+static pose a, v, v_;
 static double offset_x, offset_y, offset_z, offset_yaw; // current_pos - previous_pose
 
 //Can't load if typed "pcl::PointCloud<pcl::PointXYZRGB> map, add;"
@@ -329,10 +329,24 @@ static void initialpose_callback(const geometry_msgs::PoseWithCovarianceStamped:
   previous_pose.pitch = current_pose.pitch;
   previous_pose.yaw = current_pose.yaw;
 
-  offset_x = 0.0;
-  offset_y = 0.0;
-  offset_z = 0.0;
-  offset_yaw = 0.0;
+  v.x = 0.0;
+  v.y = 0.0;
+  v.z = 0.0;
+  v.roll = 0.0;
+  v.pitch = 0.0;
+  v.yaw = 0.0;
+  v_.x = 0.0;
+  v_.y = 0.0;
+  v_.z = 0.0;
+  v_.roll = 0.0;
+  v_.pitch = 0.0;
+  v_.yaw = 0.0;
+  a.x = 0.0;
+  a.y = 0.0;
+  a.z = 0.0;
+  a.roll = 0.0;
+  a.pitch = 0.0;
+  a.yaw = 0.0;
 }
 
 static void hokuyo_callback(const sensor_msgs::PointCloud2::ConstPtr& input)
@@ -603,6 +617,9 @@ static void velodyne_callback(const pcl::PointCloud<velodyne_pointcloud::PointXY
       current_scan_time.sec = scan.header.stamp / 1000000.0;
       current_scan_time.nsec = (scan.header.stamp - current_scan_time.sec * 1000000.0) * 1000.0;
 
+      scan_duration = current_scan_time - previous_scan_time;
+      double secs = scan_duration.toSec();
+
       for (pcl::PointCloud<velodyne_pointcloud::PointXYZIR>::const_iterator item = input->begin(); item != input->end(); item++) {
             p.x = (double) item->x;
             p.y = (double) item->y;
@@ -632,12 +649,12 @@ static void velodyne_callback(const pcl::PointCloud<velodyne_pointcloud::PointXY
       ndt.setInputSource(filtered_scan_ptr);
       
       // Guess the initial gross estimation of the transformation
-      predict_pose.x = previous_pose.x + offset_x;
-      predict_pose.y = previous_pose.y + offset_y;
-      predict_pose.z = previous_pose.z + offset_z;
+      predict_pose.x = previous_pose.x + v.x * secs + a.x * secs * secs;
+      predict_pose.y = previous_pose.y + v.y * secs + a.y * secs * secs;
+      predict_pose.z = previous_pose.z + v.z * secs + a.y * secs * secs;
       predict_pose.roll = previous_pose.roll;
       predict_pose.pitch = previous_pose.pitch;
-      predict_pose.yaw = previous_pose.yaw + offset_yaw;
+      predict_pose.yaw = previous_pose.yaw + v.yaw * secs + a.yaw * secs * secs;
 
       Eigen::Translation3f init_translation(predict_pose.x, predict_pose.y, predict_pose.z);      
       Eigen::AngleAxisf init_rotation_x(predict_pose.roll, Eigen::Vector3f::UnitX());
@@ -664,8 +681,6 @@ static void velodyne_callback(const pcl::PointCloud<velodyne_pointcloud::PointXY
       tf3d.getRPY(ndt_pose.roll, ndt_pose.pitch, ndt_pose.yaw, 1);
 
       // Compute the velocity
-      scan_duration = current_scan_time - previous_scan_time;
-      double secs = scan_duration.toSec();
       double distance = sqrt((ndt_pose.x - previous_pose.x) * (ndt_pose.x - previous_pose.x) +
 			     (ndt_pose.y - previous_pose.y) * (ndt_pose.y - previous_pose.y) +
 			     (ndt_pose.z - previous_pose.z) * (ndt_pose.z - previous_pose.z));
@@ -675,6 +690,20 @@ static void velodyne_callback(const pcl::PointCloud<velodyne_pointcloud::PointXY
 				(ndt_pose.z - predict_pose.z) * (ndt_pose.z - predict_pose.z));
 
       current_velocity = distance / secs;
+      double distance_x = ndt_pose.x - previous_pose.x;
+      double distance_y = ndt_pose.y - previous_pose.y;
+      double distance_z = ndt_pose.z - previous_pose.z;
+      double distance_yaw = ndt_pose.yaw - previous_pose.yaw;
+      v.x = distance_x / secs;
+      v.y = distance_y / secs;
+      v.z = distance_z / secs;
+      v.yaw = distance_yaw / secs;
+
+      a.x = (v.x - v_.x) / secs;
+      a.y = (v.y - v_.y) / secs;
+      a.z = (v.z - v_.z) / secs;
+      a.yaw = (v.yaw - v_.yaw) / secs;
+
       current_velocity_smooth = (current_velocity + previous_velocity + second_previous_velocity) / 3.0;
       if(current_velocity_smooth < 0.2){
 	current_velocity_smooth = 0.0;
@@ -876,6 +905,13 @@ static void velodyne_callback(const pcl::PointCloud<velodyne_pointcloud::PointXY
       previous_velocity = current_velocity;
       previous_acceleration = current_acceleration;
       previous_estimated_vel_kmph.data = estimated_vel_kmph.data;
+
+      v_.x = v.x;
+      v_.y = v.y;
+      v_.z = v.z;
+      v_.roll = v.roll;
+      v_.pitch = v.pitch;
+      v_.yaw = v.yaw;
     }
   }
 }
@@ -899,6 +935,25 @@ int main(int argc, char **argv)
     initial_pose.roll = 0.0;
     initial_pose.pitch = 0.0;
     initial_pose.yaw = 0.0;
+
+    v.x = 0.0;
+    v.y = 0.0;
+    v.z = 0.0;
+    v.roll = 0.0;
+    v.pitch = 0.0;
+    v.yaw = 0.0;
+    v_.x = 0.0;
+    v_.y = 0.0;
+    v_.z = 0.0;
+    v_.roll = 0.0;
+    v_.pitch = 0.0;
+    v_.yaw = 0.0;
+    a.x = 0.0;
+    a.y = 0.0;
+    a.z = 0.0;
+    a.roll = 0.0;
+    a.pitch = 0.0;
+    a.yaw = 0.0;
 
     // Publishers
     predict_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/predict_pose", 1000);
