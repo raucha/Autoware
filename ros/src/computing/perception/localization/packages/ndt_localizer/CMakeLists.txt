@@ -9,6 +9,8 @@ find_package(catkin REQUIRED COMPONENTS
   runtime_manager
   velodyne_pointcloud
   message_generation
+  filters
+  registration
 )
 
 add_message_files(FILES ndt_stat.msg)
@@ -24,7 +26,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES ndt_pcl
-  CATKIN_DEPENDS runtime_manager
+CATKIN_DEPENDS runtime_manager filters registration
 #  DEPENDS system_lib
 )
 
@@ -34,14 +36,14 @@ catkin_package(
 
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/fast_pcl/registration/include" "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/fast_pcl/filters/include")
 
 add_executable(ndt_matching nodes/ndt_matching/ndt_matching.cpp)
 add_executable(ndt_mapping nodes/ndt_mapping/ndt_mapping.cpp)
 add_executable(local2global nodes/local2global/local2global.cpp)
 
-target_link_libraries(ndt_matching ${catkin_LIBRARIES})
-target_link_libraries(ndt_mapping ${catkin_LIBRARIES})
+target_link_libraries(ndt_matching ${catkin_LIBRARIES} fast_pcl_filters fast_pcl_registration)
+target_link_libraries(ndt_mapping ${catkin_LIBRARIES} fast_pcl_filters fast_pcl_registration)
 target_link_libraries(local2global ${catkin_LIBRARIES})
 
 add_dependencies(ndt_matching runtime_manager_generate_messages_cpp ndt_localizer_generate_messages_cpp)

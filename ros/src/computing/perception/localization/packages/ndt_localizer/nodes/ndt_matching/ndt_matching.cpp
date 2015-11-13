@@ -62,9 +62,11 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl/registration/ndt.h>
-#include <pcl/filters/approximate_voxel_grid.h>
-#include <pcl/filters/voxel_grid.h>
+//#include <pcl/registration/ndt.h>
+//#include <pcl/filters/voxel_grid.h>
+
+#include "fast_pcl/registration/ndt.h"
+#include "fast_pcl/filters/voxel_grid.h"
 
 #include <runtime_manager/ConfigNdt.h>
 
