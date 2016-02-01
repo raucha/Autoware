@@ -15,7 +15,7 @@
   <group if="$(arg pedestrian)">
     <group ns="obj_person">
 
-      <node pkg="cv_tracker" name="tracking" type="klt_track">
+      <node pkg="cv_tracker" name="tracking" type="klt_track" output="screen">
           <remap from="/config/obj_person/klt" to="/config/pedestrian_klt" />
       </node>
 

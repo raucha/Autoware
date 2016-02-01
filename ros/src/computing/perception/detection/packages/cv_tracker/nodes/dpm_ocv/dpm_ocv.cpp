@@ -14,6 +14,8 @@
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
+static const double resize_rate = 4.0;
+
 #if defined(HAS_GPU)
 static bool use_gpu = true;
 #endif
@@ -141,7 +143,13 @@ void objectDetect::imageCallback(const sensor_msgs::ImageConstPtr& img)
 {
 	// transform image
 	cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
-	cv::Mat image = cv_image->image;
+
+	/* resize image to (1/resize_rate)*(1/resize_rate) size */
+	cv::Mat resized_image(cv_image->image.rows/resize_rate, cv_image->image.cols/resize_rate, cv_image->image.type());
+	cv::resize(cv_image->image, resized_image, cv::Size(), (1/resize_rate), (1/resize_rate), cv::INTER_AREA);
+
+	//cv::Mat image = cv_image->image;
+	cv::Mat image = resized_image;
 
 	std::vector<cv::LatentSvmDetector::ObjectDetection> detections;
 
@@ -172,11 +180,18 @@ void objectDetect::imageCallback(const sensor_msgs::ImageConstPtr& img)
 		cv_tracker::image_rect rect;
 
 		type_array[i] = od.classID;
-		rect.x = od.rect.x;
-		rect.y = od.rect.y;
-		rect.width = od.rect.width;
-		rect.height = od.rect.height;
+		// rect.x = od.rect.x;
+		// rect.y = od.rect.y;
+		// rect.width = od.rect.width;
+		// rect.height = od.rect.height;
 		rect.score = od.score;
+
+		/* remap detection result to original coordinate */
+		rect.x = od.rect.x * resize_rate;
+		rect.y = od.rect.y * resize_rate;
+		rect.width = od.rect.width * resize_rate;
+		rect.height = od.rect.height * resize_rate;
+
 		msg.obj.push_back(rect);
 	}
 

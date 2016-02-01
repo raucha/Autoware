@@ -174,6 +174,32 @@ public:
 		cv::Mat image_track = cv_image->image;
 		cv::LatentSvmDetector::ObjectDetection empty_detection(cv::Rect(0,0,0,0),0,0);
 		unsigned int i;
+		float ratio_x = image_track.cols / 800;
+		float ratio_y = image_track.rows / 600;
+		float ratio = 1;
+		if( ratio_x > ratio_y )
+		{
+			if (ratio_x > 1)
+				ratio = ratio_x;
+		}
+		else
+		{
+			if (ratio_y > 1)
+				ratio = ratio_y;
+		}
+
+		cv::resize(image_track, image_track, cv::Size(), 1/ratio, 1/ratio);
+
+		if(ratio > 1)
+		{
+			for (i =0; i< obj_detections_.size(); i++)
+			{
+				obj_detections_[i].rect.x/=ratio;
+				obj_detections_[i].rect.y/=ratio;
+				obj_detections_[i].rect.width/=ratio;
+				obj_detections_[i].rect.height/=ratio;
+			}
+		}
 
 		std::vector<bool> tracker_matched(obj_trackers_.size(), false);
 		std::vector<bool> object_matched(obj_detections_.size(), false);
@@ -219,7 +245,7 @@ public:
 				LkTracker* new_tracker = new LkTracker(++num_trackers_, min_heights_[i], max_heights_[i], ranges_[i]);
 				new_tracker->Track(image_track, obj_detections_[i], true);
 
-				//std::cout << "added new tracker" << std::endl;
+				//std::cout << "added new tracker>" << obj_detections_[i].rect << std::endl;
 				obj_trackers_.push_back(new_tracker);
 			}
 		}
@@ -249,10 +275,10 @@ public:
 		{
 			cv_tracker::image_rect_ranged rect_ranged;
 			LkTracker tracker_tmp = *obj_trackers_[i];
-			rect_ranged.rect.x = tracker_tmp.GetTrackedObject().rect.x;
-			rect_ranged.rect.y = tracker_tmp.GetTrackedObject().rect.y;
-			rect_ranged.rect.width = tracker_tmp.GetTrackedObject().rect.width;
-			rect_ranged.rect.height = tracker_tmp.GetTrackedObject().rect.height;
+			rect_ranged.rect.x = tracker_tmp.GetTrackedObject().rect.x *ratio;
+			rect_ranged.rect.y = tracker_tmp.GetTrackedObject().rect.y *ratio;
+			rect_ranged.rect.width = tracker_tmp.GetTrackedObject().rect.width*ratio;
+			rect_ranged.rect.height = tracker_tmp.GetTrackedObject().rect.height*ratio;
 			rect_ranged.rect.score = tracker_tmp.GetTrackedObject().score;
 			rect_ranged.max_height = tracker_tmp.max_height_;
 			rect_ranged.min_height = tracker_tmp.min_height_;
@@ -267,8 +293,6 @@ public:
 
 			cv::rectangle(image_track, tracker_tmp.GetTrackedObject().rect, cv::Scalar(0,255,0), 2);
 		}
-
-		//std::cout << "TRACKERS: " << obj_trackers_.size() << std::endl;
 
 		obj_detections_.clear();
 
@@ -367,7 +391,7 @@ public:
 		else
 		{
 			ROS_INFO("No object node received, defaulting to image_obj_ranged, you can use _img_obj_node:=YOUR_TOPIC");
-			image_obj_topic_str = "image_obj_ranged";
+			image_obj_topic_str = ros::this_node::getNamespace() + "/image_obj_ranged";
 		}
 
 
@@ -388,7 +412,7 @@ public:
 
 	RosTrackerApp()
 	{
-		ready_ = true;
+		ready_ = false;
 		num_trackers_ = 0;
 	}
 

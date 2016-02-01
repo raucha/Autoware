@@ -104,7 +104,7 @@ std::vector<float> _ranges;
 std::vector<float> _min_heights;
 std::vector<float> _max_heights;
 
-bool _ready =false;
+bool _ready =true;
 
 long int _counter = 0;
 //
@@ -774,7 +774,7 @@ void doTracking(std::vector<cv::LatentSvmDetector::ObjectDetection>& detections,
 
 void trackAndDrawObjects(cv::Mat& image, int frameNumber, std::vector<cv::LatentSvmDetector::ObjectDetection> detections,
 			 std::vector<kstate>& kstates, std::vector<bool>& active,
-			 std::vector<cv::Scalar> colors, const sensor_msgs::Image& image_source)
+			 std::vector<cv::Scalar> colors, const sensor_msgs::Image& image_source, float resize_ratio)
 {
 	std::vector<kstate> tracked_detections;
 
@@ -803,10 +803,10 @@ void trackAndDrawObjects(cv::Mat& image, int frameNumber, std::vector<cv::Latent
 		putText(image, SSTR(od.id), cv::Point(od.pos.x + 4, od.pos.y + 13), cv::FONT_HERSHEY_SIMPLEX, 0.55, od.color, 2);
 		//ROS
 		obj_id[i] = od.id; // ?
-		rect_ranged.rect.x	= od.pos.x;
-		rect_ranged.rect.y	= od.pos.y;
-		rect_ranged.rect.width	= od.pos.width;
-		rect_ranged.rect.height = od.pos.height;
+		rect_ranged.rect.x	= od.pos.x * resize_ratio;
+		rect_ranged.rect.y	= od.pos.y * resize_ratio;
+		rect_ranged.rect.width	= od.pos.width * resize_ratio;
+		rect_ranged.rect.height = od.pos.height * resize_ratio;
 		rect_ranged.range	= od.range;
 		rect_ranged.min_height	= od.min_height;
 		rect_ranged.max_height	= od.max_height;
@@ -839,8 +839,37 @@ void image_callback(const sensor_msgs::Image& image_source)
 		return;
 
 	cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy(image_source, sensor_msgs::image_encodings::BGR8);
-	cv::Mat imageTrack = cv_image->image;
-	trackAndDrawObjects(imageTrack, _counter, _dpm_detections, _kstates, _active, _colors, image_source);
+	cv::Mat image_track = cv_image->image;
+
+	float ratio_x = image_track.cols / 800;
+	float ratio_y = image_track.rows / 600;
+	float ratio = 1;
+	if( ratio_x > ratio_y )
+	{
+		if (ratio_x > 1)
+			ratio = ratio_x;
+	}
+	else
+	{
+		if (ratio_y > 1)
+			ratio = ratio_y;
+	}
+
+	cv::resize(image_track, image_track, cv::Size(), 1/ratio, 1/ratio);
+
+	if(ratio > 1)
+	{
+		for (unsigned int i =0; i< _dpm_detections.size(); i++)
+		{
+			_dpm_detections[i].rect.x/=ratio;
+			_dpm_detections[i].rect.y/=ratio;
+			_dpm_detections[i].rect.width/=ratio;
+			_dpm_detections[i].rect.height/=ratio;
+		}
+	}
+
+	trackAndDrawObjects(image_track, _counter, _dpm_detections, _kstates, _active, _colors, image_source, ratio);
+	_dpm_detections.clear();
 	_ready=false;
 	//imshow("Tracked", imageTrack);
 

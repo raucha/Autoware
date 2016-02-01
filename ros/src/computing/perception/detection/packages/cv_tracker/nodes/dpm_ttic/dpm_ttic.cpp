@@ -85,7 +85,25 @@ static void image_raw_cb(const sensor_msgs::Image& image_source)
 {
 
 	cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy(image_source, sensor_msgs::image_encodings::BGR8);
-	IplImage img = cv_image->image;
+	cv::Mat resized_image = cv_image->image;
+	float ratio_x = resized_image.cols / 800;
+	float ratio_y = resized_image.rows / 600;
+	float resize_rate = 1.0;
+	if( ratio_x > ratio_y )
+	{
+		if (ratio_x > 1)
+			resize_rate = ratio_x;
+	}
+	else
+	{
+		if (ratio_y > 1)
+			resize_rate = ratio_y;
+	}
+	/* resize image to (1/resize_rate)*(1/resize_rate) size */
+	cv::resize(resized_image, resized_image, cv::Size(), 1/resize_rate, 1/resize_rate);
+
+	//IplImage img = cv_image->image;
+	IplImage img = resized_image;
 	IplImage *img_ptr = &img;
 
 	cv_tracker::image_obj msg;
@@ -103,6 +121,15 @@ static void image_raw_cb(const sensor_msgs::Image& image_source)
 #if defined(HAS_GPU)
 	}
 #endif
+
+	/* remap detection result to original coordinate */
+	for (unsigned int i=0; i<msg.obj.size(); i++)
+		{
+			msg.obj[i].x	  *= resize_rate;
+			msg.obj[i].y	  *= resize_rate;
+			msg.obj[i].height *= resize_rate;
+			msg.obj[i].width  *= resize_rate;
+		}
 
 	image_obj_pub.publish(msg);
 	counter++;
