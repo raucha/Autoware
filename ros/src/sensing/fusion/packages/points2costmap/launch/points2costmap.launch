@@ -1,0 +1,15 @@
+<!-- -->
+<launch>
+    <arg name="resolution" default="1.0" />
+    <arg name="cell_width" default="50" />
+    <arg name="cell_height" default="50" />
+
+
+	<node pkg="points2costmap" type="points2costmap" name="points2costmap" output="screen">
+        <param name="resolution" value="$(arg resolution)" />
+        <param name="cell_width" value="$(arg cell_width)" />
+        <param name="cell_height" value="$(arg cell_height)" />
+	</node>
+
+</launch>
+

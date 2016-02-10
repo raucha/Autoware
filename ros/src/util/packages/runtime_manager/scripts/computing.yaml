@@ -176,6 +176,10 @@ subs :
       - name : traffic_light_viewer
         cmd  : rosrun viewers traffic_light_viewer
 
+    - name : others
+      subs :
+      - name : points2costmap
+        cmd  : roslaunch points2costmap points2costmap.launch
 
 - subs :
   - name : Mission Planning
